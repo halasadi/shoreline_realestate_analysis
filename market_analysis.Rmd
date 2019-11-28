@@ -10,8 +10,14 @@ library(dplyr)
 library(tidyr)
 ```
 
+## Disclaimer
+
+I have almost zero knowledge of financial markets. 
+
 ## Read in and format data 
-```{r, eval = FALSE}
+
+Here we read in data downloaded from zillow.com, and wrangle the data into a R dataframe.
+```{r}
 
 sale_prices    = read.table("Sale_Prices_Zip.csv", sep = ",", header = T, stringsAsFactors = FALSE)
 sale_counts    = read.table("Sale_Counts_Zip.csv", sep = ",", header = T, stringsAsFactors = FALSE)
@@ -50,14 +56,14 @@ compiled_df = sale_prices %>%
               mutate(Time = as.Date(Time)) %>%
               gather(key = "Stat", value = "Value", -Time, -RegionID) 
 
-#saveRDS(compiled_df, "compiled_df.RDS")
 ```
 
 
 ## Standardize data 
 
+Here I standardize the data relative to the US housing market.
+
 ```{r}
-#compiled_df = readRDS("compiled_df.RDS") 
 
 scaled_df = compiled_df %>% group_by(Stat, Time) %>% mutate(NormValue = scale(Value)) %>% ungroup()
 
@@ -70,4 +76,8 @@ scaled_df = compiled_df %>% group_by(Stat, Time) %>% mutate(NormValue = scale(Va
 scaled_df %>% filter(RegionID == "99589")  %>%
   ggplot(aes(x = Time, y = NormValue, color = Stat)) + geom_point(alpha = 0.5) + geom_smooth(span = 0.5, se = FALSE) + xlab("Year") + ylab("Std. Value (Normalized within Year)") + scale_x_date()
 ```
+
+The green curve indicates a buying craze in the Shoreline area (which probably happened to the entire Seattle area). Homes were sold substantially more than the asking price, even normalized by nationwide growth in the housing market. 
+
+Interestingly this pattern has completely reversed recently, with home prices being sold substantially less than asking price. This has to lead to decreased home prices. 
 
