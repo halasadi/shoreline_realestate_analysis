@@ -1,0 +1,73 @@
+---
+title: "realestate_shoreline"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+## Read in and format data 
+```{r, eval = FALSE}
+
+sale_prices    = read.table("Sale_Prices_Zip.csv", sep = ",", header = T, stringsAsFactors = FALSE)
+sale_counts    = read.table("Sale_Counts_Zip.csv", sep = ",", header = T, stringsAsFactors = FALSE)
+price_cut      = read.table("Zip_Listings_PriceCut_SeasAdj_AllHomes.csv", sep = ",", header = T, stringsAsFactors = FALSE)
+
+
+reformat_col_names <- function(x){
+  begin = which(startsWith(colnames(x), "X") == TRUE)[1]
+  end   = ncol(x)
+  dates = colnames(x)[begin:end]
+  dates = sapply(dates, function(x) {chartr(old = ".", new = "-", paste0(substring(x,2), ".1"))})
+  colnames(x)[begin:end] = dates
+  return(x)
+}
+
+sale_prices    = reformat_col_names(sale_prices)
+sale_counts    = reformat_col_names(sale_counts)
+price_cut      = reformat_col_names(price_cut)
+
+sale_prices = sale_prices %>% 
+  gather(key = "Time", value = "SalePrice", -RegionID, -RegionName, -StateName, -SizeRank) %>%
+  select(Time, SalePrice, RegionID)
+
+sale_counts = sale_counts %>% 
+  gather(key = "Time", value = "NumberSales", -RegionID, -RegionName, -StateName, -SizeRank) %>%
+  select(Time, NumberSales, RegionID)
+
+price_cut = price_cut %>% 
+  gather(key = "Time", value = "PriceCut", -RegionID, -RegionName, -City, -County, -State, -Metro, -SizeRank) %>%
+  select(Time, PriceCut, RegionID)
+
+
+compiled_df = sale_prices %>%
+              left_join(sale_counts, by = c("Time", "RegionID")) %>%
+              left_join(price_cut, by = c("Time", "RegionID")) %>%
+              mutate(Time = as.Date(Time)) %>%
+              gather(key = "Stat", value = "Value", -Time, -RegionID) 
+
+#saveRDS(compiled_df, "compiled_df.RDS")
+```
+
+
+## Standardize data 
+
+```{r}
+#compiled_df = readRDS("compiled_df.RDS") 
+
+scaled_df = compiled_df %>% group_by(Stat, Time) %>% mutate(NormValue = scale(Value)) %>% ungroup()
+
+```
+
+
+## Visualize Shoreline data
+
+```{r}
+scaled_df %>% filter(RegionID == "99589")  %>%
+  ggplot(aes(x = Time, y = NormValue, color = Stat)) + geom_point(alpha = 0.5) + geom_smooth(span = 0.5, se = FALSE) + xlab("Year") + ylab("Std. Value (Normalized within Year)") + scale_x_date()
+```
+
